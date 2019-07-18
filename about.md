@@ -13,7 +13,6 @@ How to reach me:
 <table>
   <tr>
     <td align="center">
-      <!-- <img src="http://icons.iconarchive.com/icons/papirus-team/papirus-apps/512/upwork-icon.png" width="55" /> -->
       <img src="{{site.baseurl}}/static/icon-upwork.png" width="55" />
     </td>
     <td>Upwork</td>
@@ -21,7 +20,6 @@ How to reach me:
   </tr>
   <tr>
     <td align="center">
-      <!-- <img src="https://image.flaticon.com/icons/svg/174/174857.svg" width="50" /> -->
       <img src="{{site.baseurl}}/static/icon-linkedin.svg" width="50" />
     </td>
     <td>LinkedIn</td>
@@ -29,8 +27,6 @@ How to reach me:
   </tr>
   <tr>
     <td align="center">
-      <!-- <img src="https://mageewp.com/wp-content/uploads/2016/08/mail.png" width="55" /> -->
-      <!-- <img src="https://ijcnlp2008.org/images/mail-clipart-letterclip-3.png" width="57" /> -->
       <img src="{{site.baseurl}}/static/icon-email.png" width="57" />
     </td>
     <td>Email</td>
