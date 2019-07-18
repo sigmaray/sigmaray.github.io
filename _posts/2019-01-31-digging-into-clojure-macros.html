@@ -1,0 +1,126 @@
+---
+layout: post
+---
+Often newcomers don't understand what are Clojure macros and when are they used.
+<br /><br />
+I will start from macro that I wrote by myself.
+<br />
+Most of the time I was programming in Ruby and JavaScript. Sometimes I need to print debug information in console.
+<br /><br />
+In ruby I do it this way:
+<div style="background:#ffffff;overflow:auto;width:auto;border:solid gray;border-width:.1em .1em .1em .8em;padding:.2em .6em;">
+<pre style="margin:0;line-height:125%;">foo <span style="color:#333333;">=</span> <span style="color:#aa6600;">:bar</span>
+baz <span style="color:#333333;">=</span> <span style="color:#aa6600;">:qux</span>
+<span style="color:#008800;font-weight:bold;">def</span> <span style="color:#0066bb;font-weight:bold;">corge</span>
+  <span style="color:#0000dd;font-weight:bold;">1</span> <span style="color:#333333;">+</span> <span style="color:#0000dd;font-weight:bold;">2</span>
+<span style="color:#008800;font-weight:bold;">end</span>
+<span style="color:#007020;">p</span> <span style="color:#333333;">[</span><span style="color:#007020;">__LINE__</span>, <span style="color:#333333;">[</span><span style="background-color:#fff0f0;">'foo'</span>, <span style="background-color:#fff0f0;">'baz'</span>, <span style="background-color:#fff0f0;">'corge'</span><span style="color:#333333;">].</span>map{ <span style="color:#333333;">|</span>e<span style="color:#333333;">|</span> { e <span style="color:#333333;">=></span> <span style="color:#007020;">eval</span>(e) } }<span style="color:#333333;">.</span>inject(<span style="color:#aa6600;">:merge</span>)<span style="color:#333333;">]</span>
+</pre>
+</div>
+<br />
+I have to write <code>p [__LINE__, [...].map{ |e| { e => eval(e) } }.inject(:merge)]</code> every time I need to print debug information. I cannot move this code into function, because <code>__LINE__</code> will give wrong line number, and function will not be able to capture local variables (function will not see them). So in Ruby I have to copy-paste same code over and over.
+<br /><br />
+For Clojure I wrote these 2 macros:
+<!-- HTML generated using hilite.me -->
+<div style="background:#ffffff;overflow:auto;width:auto;border:solid gray;border-width:.1em .1em .1em .8em;padding:.2em .6em;">
+<pre style="margin:0;line-height:125%;">(<span style="color:#008800;font-weight:bold;">defmacro </span><span style="color:#996633;">to-hash</span>
+  <span style="background-color:#fff0f0;">"Convert expression into hasmap.</span>
+<span style="background-color:#fff0f0;">  Example:</span>
+<span style="background-color:#fff0f0;">  => (to-hash (+ 1 2))</span>
+<span style="background-color:#fff0f0;">  {(+ 1 2) 3}"</span>
+  [<span style="color:#996633;">arg</span>] <span style="color:#333333;">`</span>{<span style="color:#333333;">'~</span><span style="color:#996633;">arg</span> <span style="color:#333333;">~</span><span style="color:#996633;">arg</span>})
+
+(<span style="color:#008800;font-weight:bold;">defmacro </span><span style="color:#996633;">log</span>
+  <span style="background-color:#fff0f0;">"Log expression to console and execute it.</span>
+<span style="background-color:#fff0f0;">  Example:</span>
+<span style="background-color:#fff0f0;">  => (log (+ 1 2))</span>
+<span style="background-color:#fff0f0;">  [# {:line 12} ((+ 1 2)) 3]</span>
+<span style="background-color:#fff0f0;">  3"</span>
+  [<span style="color:#333333;">&</span> <span style="color:#996633;">body</span>]
+  (<span style="color:#008800;font-weight:bold;">let </span>[<span style="color:#996633;">value#</span> <span style="color:#333333;">`</span>(<span style="color:#008800;font-weight:bold;">do </span><span style="color:#333333;">~@</span><span style="color:#996633;">body</span>)]
+    <span style="color:#333333;">`</span>(<span style="color:#0066bb;font-weight:bold;">do</span>
+       (<span style="color:#007020;">println </span>[(<span style="color:#0066bb;font-weight:bold;">java.util.Date.</span>) <span style="color:#333333;">~</span>(<span style="color:#007020;">meta </span><span style="color:#333333;">&</span><span style="color:#996633;">form</span>) <span style="color:#333333;">'~</span><span style="color:#996633;">body</span> <span style="color:#333333;">~</span><span style="color:#996633;">value#</span>]))))
+</pre>
+</div>
+<br />
+I found good example in <a href="http://shop.oreilly.com/product/0636920013754.do">Clojure Programming</a> book:
+<!-- HTML generated using hilite.me -->
+<div style="background:#ffffff;overflow:auto;width:auto;border:solid gray;border-width:.1em .1em .1em .8em;padding:.2em .6em;">
+<pre style="margin:0;line-height:125%;"><span style="color:#008800;font-weight:bold;">for</span> <span style="color:#333333;">(</span><span style="color:#333399;font-weight:bold;">int</span> i <span style="color:#333333;">=</span> <span style="color:#0000dd;font-weight:bold;">0</span><span style="color:#333333;">;</span> i <span style="color:#333333;"><</span> collection<span style="color:#333333;">.</span><span style="color:#0000cc;">size</span><span style="color:#333333;">();</span> i<span style="color:#333333;">++)</span> <span style="color:#333333;">{</span>
+  SomeType var <span style="color:#333333;">=</span> <span style="color:#333333;">(</span>SomeType<span style="color:#333333;">)</span>collection<span style="color:#333333;">.</span><span style="color:#0000cc;">get</span><span style="color:#333333;">(</span>i<span style="color:#333333;">);</span>
+  <span style="color:#333333;">...</span>
+<span style="color:#333333;">}</span>
+</pre>
+</div>
+<br />
+Old versions of Java didn't have foreach loop. It was not possible to add this loop without modifying Java Compiler. It was not possible to implement custom foreach loop using functions, because function call evaluates each argument before executing function body. When you write Clojure macro you can evaluate one macro argument and skip evaluation of next one, you can do everything you want.
+<br /><br />
+For example we need such loop in Java:
+<!-- HTML generated using hilite.me -->
+<div style="background:#ffffff;overflow:auto;width:auto;border:solid gray;border-width:.1em .1em .1em .8em;padding:.2em .6em;">
+<pre style="margin:0;line-height:125%;"><span style="color:#008800;font-weight:bold;">for</span> <span style="color:#333333;">(</span>SomeType var <span style="color:#333333;">:</span> collection<span style="color:#333333;">)</span> <span style="color:#333333;">{</span>
+  <span style="color:#333333;">...</span>
+<span style="color:#333333;">}</span>
+</pre>
+</div>
+<br />
+It can be implemented this way:
+<!-- HTML generated using hilite.me -->
+<div style="background:#ffffff;overflow:auto;width:auto;border:solid gray;border-width:.1em .1em .1em .8em;padding:.2em .6em;">
+<pre style="margin:0;line-height:125%;">(<span style="color:#008800;font-weight:bold;">defmacro </span><span style="color:#996633;">foreach</span> [[<span style="color:#996633;">sym</span> <span style="color:#996633;">coll</span>] <span style="color:#333333;">&</span> <span style="color:#996633;">body</span>]
+  <span style="color:#333333;">`</span>(<span style="color:#008800;font-weight:bold;">loop </span>[<span style="color:#996633;">coll#</span> <span style="color:#333333;">~</span><span style="color:#996633;">coll</span>]
+     (<span style="color:#007020;">when-let </span>[[<span style="color:#333333;">~</span><span style="color:#996633;">sym</span> <span style="color:#333333;">&</span> <span style="color:#996633;">xs#</span>] (<span style="color:#007020;">seq </span><span style="color:#996633;">coll#</span>)]
+       <span style="color:#333333;">~@</span><span style="color:#996633;">body</span>
+       (<span style="color:#0066bb;font-weight:bold;">recur</span> <span style="color:#996633;">xs#</span>))))
+
+<span style="color:#888888;">;= #'user/foreach</span>
+(<span style="color:#0066bb;font-weight:bold;">foreach</span> [<span style="color:#996633;">x</span> [<span style="color:#0000dd;font-weight:bold;">1</span> <span style="color:#0000dd;font-weight:bold;">2</span> <span style="color:#0000dd;font-weight:bold;">3</span>]]
+         (<span style="color:#007020;">println </span><span style="color:#996633;">x</span>))
+<span style="color:#888888;">; 1</span>
+<span style="color:#888888;">; 2</span>
+<span style="color:#888888;">; 3</span>
+</pre>
+</div>
+<br />
+It's possible to write macro that will allow you to write reversed code.
+
+<!-- HTML generated using hilite.me -->
+<div style="background:#ffffff;overflow:auto;width:auto;border:solid gray;border-width:.1em .1em .1em .8em;padding:.2em .6em;">
+<pre style="margin:0;line-height:125%;">(<span style="color:#0066bb;font-weight:bold;">require</span> <span style="color:#333333;">'</span>(<span style="color:#0066bb;font-weight:bold;">clojure</span> [<span style="color:#996633;">string</span> <span style="color:#aa6600;">:as</span> <span style="color:#996633;">str</span>]
+                   [<span style="color:#996633;">walk</span> <span style="color:#aa6600;">:as</span> <span style="color:#996633;">walk</span>]))
+(<span style="color:#008800;font-weight:bold;">defmacro </span><span style="color:#996633;">reverse-it</span>
+  [<span style="color:#996633;">form</span>]
+  (<span style="color:#0066bb;font-weight:bold;">walk/postwalk</span> <span style="color:#333333;">#</span>(<span style="color:#008800;font-weight:bold;">if </span>(<span style="color:#007020;">symbol? </span><span style="color:#996633;">%</span>)
+                    (<span style="color:#007020;">symbol </span>(<span style="color:#0066bb;font-weight:bold;">str/reverse</span> (<span style="color:#007020;">name </span><span style="color:#996633;">%</span>)))
+                    <span style="color:#996633;">%</span>)
+                 <span style="color:#996633;">form</span>))
+
+(<span style="color:#0066bb;font-weight:bold;">reverse-it</span>
+  (<span style="color:#0066bb;font-weight:bold;">qesod</span> [<span style="color:#996633;">gra</span> (<span style="color:#0066bb;font-weight:bold;">egnar</span> <span style="color:#0000dd;font-weight:bold;">5</span>)]
+         (<span style="color:#0066bb;font-weight:bold;">nltnirp</span> (<span style="color:#0066bb;font-weight:bold;">cni</span> <span style="color:#996633;">gra</span>))))
+<span style="color:#888888;">; 1</span>
+<span style="color:#888888;">; 2</span>
+<span style="color:#888888;">; 3</span>
+<span style="color:#888888;">; 4</span>
+<span style="color:#888888;">; 5</span>
+<span style="color:#888888;">;= nil</span>
+
+(<span style="color:#007020;">macroexpand-1 </span><span style="color:#333333;">'</span>(<span style="color:#0066bb;font-weight:bold;">reverse-it</span>
+                  (<span style="color:#0066bb;font-weight:bold;">qesod</span> [<span style="color:#996633;">gra</span> (<span style="color:#0066bb;font-weight:bold;">egnar</span> <span style="color:#0000dd;font-weight:bold;">5</span>)]
+                         (<span style="color:#0066bb;font-weight:bold;">nltnirp</span> (<span style="color:#0066bb;font-weight:bold;">cni</span> <span style="color:#996633;">gra</span>)))))
+<span style="color:#888888;">;= (doseq [arg (range 5)]</span>
+<span style="color:#888888;">;= (println (inc arg)))</span>
+</pre>
+</div>
+<br />
+Another example. Look at source code of Clojure's when-not macro (it's similar to unless statement in Ruby)
+<div style="background:#ffffff;overflow:auto;width:auto;border:solid gray;border-width:.1em .1em .1em .8em;padding:.2em .6em;">
+<pre style="margin:0;line-height:125%;">(<span style="color:#008800;font-weight:bold;">defmacro </span><span style="color:#996633;">when-not</span>
+  <span style="background-color:#fff0f0;">"Evaluates test. If logical false, evaluates body in an implicit do."</span>
+  {<span style="color:#aa6600;">:added</span> <span style="background-color:#fff0f0;">"1.0"</span>}
+  [<span style="color:#007020;">test </span><span style="color:#333333;">&</span> <span style="color:#996633;">body</span>]
+    (<span style="color:#007020;">list </span><span style="color:#aa6600;">'if</span> <span style="color:#007020;">test </span><span style="color:#996633;">nil</span> (<span style="color:#007020;">cons </span><span style="color:#aa6600;">'do</span> <span style="color:#996633;">body</span>)))
+</pre>
+</div>
+<br />
+Clojure has very simple syntax (written on Java). Remaining syntax (most of Clojure language) is implemented in Clojure itself.

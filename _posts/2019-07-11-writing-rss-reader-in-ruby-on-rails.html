@@ -1,0 +1,104 @@
+---
+layout: post
+title: "Writing RSS reader in Ruby on Rails"
+---
+    <p>Google Reader was closed on July 1, 2013. It was a big loss for me.</p>
+<p>I needed a&nbsp;<strong>simple</strong> RSS reader without any JavaScript.</p>
+<p>I tried to write RSS reader in ROR and was surprised how fast it was to implement it.</p>
+<p>Most important file in project is rake file:<br>
+<!-- HTML generated using hilite.me --></p>
+<div style="background:#ffffff;overflow:auto;width:auto;border:solid gray;border-width:.1em .1em .1em .8em;padding:.2em .6em;">
+<pre style="margin:0;line-height:125%;"><span style="color:#007020;">require</span> <span style="background-color:#fff0f0;">'rss'</span>
+<span style="color:#007020;">require</span> <span style="background-color:#fff0f0;">'simple-rss'</span>
+<span style="color:#007020;">require</span> <span style="background-color:#fff0f0;">'open-uri'</span>
+
+namespace <span style="color:#aa6600;">:rss</span> <span style="color:#008800;font-weight:bold;">do</span>
+  desc <span style="background-color:#fff0f0;">"Daemon for fetching rss feeds"</span>
+  task <span style="color:#aa6600;">daemon</span>: <span style="color:#aa6600;">:environment</span> <span style="color:#008800;font-weight:bold;">do</span>
+    <span style="color:#888888;"># Signal.trap('TERM') { abort }</span>
+
+    <span style="color:#008800;font-weight:bold;">def</span> <span style="color:#0066bb;font-weight:bold;">fetch_feed</span>(f)
+      <span style="color:#008800;font-weight:bold;">begin</span>
+        <span style="color:#008800;font-weight:bold;">begin</span> 
+          rss <span style="color:#333333;">=</span> <span style="color:#aa6600;">RSS</span>:<span style="color:#aa6600;">:Parser</span><span style="color:#333333;">.</span>parse(<span style="color:#007020;">open</span>(f<span style="color:#333333;">.</span>url)<span style="color:#333333;">.</span>read, <span style="color:#003388;font-weight:bold;">false</span>)<span style="color:#333333;">.</span>items
+
+          rss<span style="color:#333333;">.</span>each <span style="color:#008800;font-weight:bold;">do</span>  <span style="color:#333333;">|</span>item<span style="color:#333333;">|</span>
+            <span style="color:#008800;font-weight:bold;">if</span> <span style="color:#003366;font-weight:bold;">Item</span><span style="color:#333333;">.</span>where(<span style="color:#aa6600;">link</span>: item<span style="color:#333333;">.</span>link)<span style="color:#333333;">.</span>blank?
+              f<span style="color:#333333;">.</span>items<span style="color:#333333;">.</span>create!(
+                <span style="color:#aa6600;">link</span>: item<span style="color:#333333;">.</span>link,
+                <span style="color:#aa6600;">description</span>: item<span style="color:#333333;">.</span>description,
+                pub_date: item<span style="color:#333333;">.</span>pubDate,
+                <span style="color:#aa6600;">title</span>: item<span style="color:#333333;">.</span>title,
+                <span style="color:#aa6600;">json</span>: item<span style="color:#333333;">.</span>to_json
+              )
+            <span style="color:#008800;font-weight:bold;">end</span>
+          <span style="color:#008800;font-weight:bold;">end</span>
+        <span style="color:#008800;font-weight:bold;">rescue</span> <span style="color:#333333;">=&gt;</span> e
+          <span style="color:#007020;">p</span> <span style="background-color:#fff0f0;">"Rescued network error: </span><span style="background-color:#eeeeee;">#{</span>e<span style="color:#333333;">.</span>inspect<span style="background-color:#eeeeee;">}</span><span style="background-color:#fff0f0;"> [feed: </span><span style="background-color:#eeeeee;">#{</span>f<span style="color:#333333;">.</span>url<span style="background-color:#eeeeee;">}</span><span style="background-color:#fff0f0;">]"</span>
+        <span style="color:#008800;font-weight:bold;">end</span>
+
+        f<span style="color:#333333;">.</span>last_fetched_at <span style="color:#333333;">=</span> <span style="color:#003366;font-weight:bold;">Time</span><span style="color:#333333;">.</span>now
+        f<span style="color:#333333;">.</span>save!
+
+      <span style="color:#008800;font-weight:bold;">rescue</span> <span style="color:#333333;">=&gt;</span> e
+        <span style="color:#007020;">p</span> <span style="background-color:#fff0f0;">"Rescued general error: </span><span style="background-color:#eeeeee;">#{</span>e<span style="color:#333333;">.</span>inspect<span style="background-color:#eeeeee;">}</span><span style="background-color:#fff0f0;">"</span>
+      <span style="color:#008800;font-weight:bold;">end</span>
+    <span style="color:#008800;font-weight:bold;">end</span>
+
+    fetching_now <span style="color:#333333;">=</span> <span style="color:#333333;">[]</span>
+    fetch_queue <span style="color:#333333;">=</span> <span style="color:#333333;">[]</span>
+    last_printed_at <span style="color:#333333;">=</span> <span style="color:#003388;font-weight:bold;">nil</span>
+
+    <span style="color:#0000dd;font-weight:bold;">20</span><span style="color:#333333;">.</span>times <span style="color:#008800;font-weight:bold;">do</span> <span style="color:#333333;">|</span>t<span style="color:#333333;">|</span>
+      spy <span style="color:#333333;">=</span> <span style="color:#003366;font-weight:bold;">Thread</span><span style="color:#333333;">.</span>new <span style="color:#008800;font-weight:bold;">do</span>
+        <span style="color:#007020;">p</span> <span style="background-color:#fff0f0;">"Started thread #</span><span style="background-color:#eeeeee;">#{</span>t<span style="background-color:#eeeeee;">}</span><span style="background-color:#fff0f0;">"</span>
+        <span style="color:#003388;font-weight:bold;">loop</span> <span style="color:#008800;font-weight:bold;">do</span>
+          fetch_queue<span style="color:#333333;">.</span>each <span style="color:#008800;font-weight:bold;">do</span> <span style="color:#333333;">|</span>fq<span style="color:#333333;">|</span>
+            <span style="color:#008800;font-weight:bold;">next</span> <span style="color:#008800;font-weight:bold;">if</span> fetching_now<span style="color:#333333;">.</span>include?(fq)
+
+            fetching_now <span style="color:#333333;">&lt;&lt;</span> fq
+            f <span style="color:#333333;">=</span> <span style="color:#003366;font-weight:bold;">Feed</span><span style="color:#333333;">.</span>find(fq)
+            <span style="color:#007020;">p</span> <span style="background-color:#fff0f0;">"Fetching feed: </span><span style="background-color:#eeeeee;">#{</span>f<span style="color:#333333;">.</span>url<span style="background-color:#eeeeee;">}</span><span style="background-color:#fff0f0;">"</span>
+            fetch_feed f
+            fetching_now<span style="color:#333333;">.</span>delete fq
+            fetch_queue<span style="color:#333333;">.</span>delete fq
+            <span style="color:#007020;">p</span> <span style="background-color:#fff0f0;">"Finished fetching feed: </span><span style="background-color:#eeeeee;">#{</span>f<span style="color:#333333;">.</span>url<span style="background-color:#eeeeee;">}</span><span style="background-color:#fff0f0;">"</span>
+          <span style="color:#008800;font-weight:bold;">end</span>
+
+          <span style="color:#007020;">sleep</span>(<span style="color:#0000dd;font-weight:bold;">0</span><span style="color:#333333;">.</span><span style="color:#4400ee;font-weight:bold;">01</span>)
+        <span style="color:#008800;font-weight:bold;">end</span>
+      <span style="color:#008800;font-weight:bold;">end</span>
+    <span style="color:#008800;font-weight:bold;">end</span>
+
+    <span style="color:#003388;font-weight:bold;">loop</span> <span style="color:#008800;font-weight:bold;">do</span>
+      <span style="color:#008800;font-weight:bold;">if</span> last_printed_at<span style="color:#333333;">.</span>blank? <span style="color:#333333;">||</span> ((<span style="color:#003366;font-weight:bold;">Time</span><span style="color:#333333;">.</span>now <span style="color:#333333;">-</span> last_printed_at) <span style="color:#333333;">&gt;</span> <span style="color:#0000dd;font-weight:bold;">1</span>)
+        <span style="color:#007020;">p</span> <span style="color:#333333;">[</span><span style="background-color:#fff0f0;">'fetch_queue'</span>, fetch_queue<span style="color:#333333;">].</span>inspect
+        <span style="color:#007020;">p</span> <span style="color:#333333;">[</span><span style="background-color:#fff0f0;">'fetch_queue.length'</span>, fetch_queue<span style="color:#333333;">.</span>length<span style="color:#333333;">].</span>inspect
+        <span style="color:#007020;">p</span> <span style="color:#333333;">[</span><span style="background-color:#fff0f0;">'fetching_now'</span>, fetching_now<span style="color:#333333;">].</span>inspect
+        last_printed_at <span style="color:#333333;">=</span> <span style="color:#003366;font-weight:bold;">Time</span><span style="color:#333333;">.</span>now
+      <span style="color:#008800;font-weight:bold;">end</span>
+
+      <span style="color:#003366;font-weight:bold;">Feed</span><span style="color:#333333;">.</span>fetchable<span style="color:#333333;">.</span>each <span style="color:#008800;font-weight:bold;">do</span> <span style="color:#333333;">|</span>f<span style="color:#333333;">|</span>
+        t <span style="color:#333333;">=</span> <span style="color:#003366;font-weight:bold;">Time</span><span style="color:#333333;">.</span>now
+        <span style="color:#008800;font-weight:bold;">if</span> f<span style="color:#333333;">.</span>last_fetched_at<span style="color:#333333;">.</span>present? 
+          <span style="color:#008800;font-weight:bold;">if</span> f<span style="color:#333333;">.</span>interval_seconds<span style="color:#333333;">.</span>present?
+            <span style="color:#008800;font-weight:bold;">next</span> <span style="color:#008800;font-weight:bold;">if</span> (t <span style="color:#333333;">-</span> f<span style="color:#333333;">.</span>last_fetched_at) <span style="color:#333333;">&lt;</span> f<span style="color:#333333;">.</span>interval_seconds
+          <span style="color:#008800;font-weight:bold;">else</span>
+            <span style="color:#008800;font-weight:bold;">next</span> <span style="color:#008800;font-weight:bold;">if</span> (t <span style="color:#333333;">-</span> f<span style="color:#333333;">.</span>last_fetched_at) <span style="color:#333333;">&lt;</span> <span style="color:#0000dd;font-weight:bold;">60</span>
+          <span style="color:#008800;font-weight:bold;">end</span>
+        <span style="color:#008800;font-weight:bold;">end</span>
+        fetch_queue <span style="color:#333333;">&lt;&lt;</span> f<span style="color:#333333;">.</span>id <span style="color:#008800;font-weight:bold;">if</span> <span style="color:#333333;">!</span>fetch_queue<span style="color:#333333;">.</span>include?(f<span style="color:#333333;">.</span>id)
+      <span style="color:#008800;font-weight:bold;">end</span>
+
+      <span style="color:#007020;">sleep</span>(<span style="color:#0000dd;font-weight:bold;">0</span><span style="color:#333333;">.</span><span style="color:#4400ee;font-weight:bold;">01</span>)
+    <span style="color:#008800;font-weight:bold;">end</span>
+  <span style="color:#008800;font-weight:bold;">end</span>
+<span style="color:#008800;font-weight:bold;">end</span>
+</pre>
+</div>
+<br />
+<p>I take list of feeds from database. If feed was not fetched for a long time, I add it into <code>fetch_queue</code>. There are 20 threads. Each thread takes feed from <code>fetch_queue</code>, fetch feed and remove it from queue.</p>
+<p>I heard that threads are poorly implemented in Ruby. Ruby has GIL (Global interpreter lock). It’s a bad idea to create GUI in Ruby or Python. But I discovered that GIL threads are more than enough for fetching data simultaneously.</p>
+<p>Frontend is not worth mentioning. I simply show feed items with a pagination. I need reverse pagination, so I can’t use kaminari or will_paginate. I found a good solution <a href="https://medium.com/@Flyr1Q/rails-reverse-pagination-from-scratch-74346c9ab556">in Google</a>.</p>
+<p>And I use <a href="https://github.com/activeadmin/activeadmin">ActiveAdmin</a> to manage list of feeds.</p>
+<p>Source code is available in Github: <a href="https://github.com/sigmaray/rails-rss-reader">https://github.com/sigmaray/rails-rss-reader</a></p>

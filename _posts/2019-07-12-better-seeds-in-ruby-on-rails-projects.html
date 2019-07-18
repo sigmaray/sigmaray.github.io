@@ -1,0 +1,140 @@
+---
+layout: post
+title: "Better seeds for Ruby on Rails projects"
+---
+    <p>I have created rake task for generating nice test data in development environment (I don’t use this task in production).</p>
+<p>I use <a href="https://github.com/thoughtbot/factory_bot">factory_bot</a> and <a href="https://github.com/stympy/faker">faker</a> for rspec tests.</p>
+<p>An idea came to my head: why not to use existing factories for creating seed data in dev environment?</p>
+<p>alias_task.rake:<!-- HTML generated using hilite.me --></p>
+<div style="background:#ffffff;overflow:auto;width:auto;border:solid gray;border-width:.1em .1em .1em .8em;padding:.2em .6em;">
+<pre style="margin:0;line-height:125%;">def alias_task<span style="color:#333333;">(</span>name, old_name<span style="color:#333333;">)</span>
+  <span style="color:#996633;">t</span> <span style="color:#333333;">=</span> Rake::Task<span style="color:#333333;">[</span>old_name<span style="color:#333333;">]</span>
+  desc t.full_comment <span style="color:#008800;font-weight:bold;">if </span>t.full_comment
+  task name, *t.arg_names <span style="color:#008800;font-weight:bold;">do</span> |_, args|
+    <span style="color:#888888;"># values_at is broken on Rake::TaskArguments</span>
+    <span style="color:#996633;">all_arguments</span> <span style="color:#333333;">=</span> t.arg_names.map <span style="color:#333333;">{</span> |a| args<span style="color:#333333;">[</span>a<span style="color:#333333;">]</span> <span style="color:#333333;">}</span>
+    all_arguments +<span style="color:#333333;">=</span> args.extras.to_a
+    t.invoke<span style="color:#333333;">(</span>*all_arguments<span style="color:#333333;">)</span>
+  end
+end
+</pre>
+</div>
+<br />
+<p>gen.rake:<!-- HTML generated using hilite.me --></p>
+<div style="background:#ffffff;overflow:auto;width:auto;border:solid gray;border-width:.1em .1em .1em .8em;padding:.2em .6em;">
+<pre style="margin:0;line-height:125%;"><span style="color:#888888;"># rubocop:disable Style/SymbolArray, Style/ParallelAssignment</span>
+namespace <span style="color:#aa6600;">:gen</span> <span style="color:#008800;font-weight:bold;">do</span> <span style="color:#888888;"># rubocop:disable Metrics/BlockLength</span>
+  <span style="color:#888888;"># rake gen:create[factory]</span>
+  <span style="color:#888888;"># rake gen:create[factory,trait]</span>
+  task <span style="color:#aa6600;">:create</span>, <span style="color:#333333;">[</span><span style="color:#aa6600;">:p1</span>, <span style="color:#aa6600;">:p2</span><span style="color:#333333;">]</span> <span style="color:#333333;">=&gt;</span> <span style="color:#aa6600;">:environment</span> <span style="color:#008800;font-weight:bold;">do</span> <span style="color:#333333;">|</span>_, args<span style="color:#333333;">|</span>
+    <span style="color:#008800;font-weight:bold;">if</span> args<span style="color:#333333;">[</span><span style="color:#aa6600;">:p2</span><span style="color:#333333;">].</span>present?
+      <span style="color:#007020;">name</span>, trait <span style="color:#333333;">=</span> args<span style="color:#333333;">[</span><span style="color:#aa6600;">:p1</span><span style="color:#333333;">].</span>underscore<span style="color:#333333;">.</span>singularize<span style="color:#333333;">.</span>to_sym, args<span style="color:#333333;">[</span><span style="color:#aa6600;">:p2</span><span style="color:#333333;">].</span>to_sym
+      <span style="color:#003366;font-weight:bold;">FactoryBot</span><span style="color:#333333;">.</span>create <span style="color:#007020;">name</span>, trait
+    <span style="color:#008800;font-weight:bold;">else</span>
+      <span style="color:#007020;">name</span> <span style="color:#333333;">=</span> args<span style="color:#333333;">[</span><span style="color:#aa6600;">:p1</span><span style="color:#333333;">].</span>underscore<span style="color:#333333;">.</span>to_sym
+      <span style="color:#003366;font-weight:bold;">FactoryBot</span><span style="color:#333333;">.</span>create <span style="color:#007020;">name</span>
+    <span style="color:#008800;font-weight:bold;">end</span>
+  <span style="color:#008800;font-weight:bold;">end</span>
+
+  alias_task <span style="color:#aa6600;">:c</span>, <span style="color:#aa6600;">:create</span>
+
+  <span style="color:#888888;"># Usage examples:</span>
+  <span style="color:#888888;"># rake gen:create_list[factory,10]</span>
+  <span style="color:#888888;"># rake gen:create_list[factory,10,trait]</span>
+  task <span style="color:#aa6600;">:create_list</span>, <span style="color:#333333;">[</span><span style="color:#aa6600;">:p1</span>, <span style="color:#aa6600;">:p2</span>, <span style="color:#aa6600;">:p3</span><span style="color:#333333;">]</span> <span style="color:#333333;">=&gt;</span> <span style="color:#aa6600;">:environment</span> <span style="color:#008800;font-weight:bold;">do</span> <span style="color:#333333;">|</span>_, args<span style="color:#333333;">|</span>
+    <span style="color:#008800;font-weight:bold;">if</span> args<span style="color:#333333;">[</span><span style="color:#aa6600;">:p3</span><span style="color:#333333;">].</span>present?
+      <span style="color:#007020;">name</span>, num, trait <span style="color:#333333;">=</span> args<span style="color:#333333;">[</span><span style="color:#aa6600;">:p1</span><span style="color:#333333;">].</span>underscore<span style="color:#333333;">.</span>singularize<span style="color:#333333;">.</span>to_sym, args<span style="color:#333333;">[</span><span style="color:#aa6600;">:p2</span><span style="color:#333333;">].</span>to_i, args<span style="color:#333333;">[</span><span style="color:#aa6600;">:p3</span><span style="color:#333333;">].</span>to_sym
+      <span style="color:#003366;font-weight:bold;">FactoryBot</span><span style="color:#333333;">.</span>create_list <span style="color:#007020;">name</span>, num, trait
+    <span style="color:#008800;font-weight:bold;">else</span>
+      <span style="color:#007020;">name</span>, num <span style="color:#333333;">=</span> args<span style="color:#333333;">[</span><span style="color:#aa6600;">:p1</span><span style="color:#333333;">].</span>underscore<span style="color:#333333;">.</span>singularize<span style="color:#333333;">.</span>to_sym, args<span style="color:#333333;">[</span><span style="color:#aa6600;">:p2</span><span style="color:#333333;">].</span>to_i
+      <span style="color:#003366;font-weight:bold;">FactoryBot</span><span style="color:#333333;">.</span>create_list <span style="color:#007020;">name</span>, num
+    <span style="color:#008800;font-weight:bold;">end</span>
+  <span style="color:#008800;font-weight:bold;">end</span>
+
+  alias_task <span style="color:#aa6600;">:cl</span>, <span style="color:#aa6600;">:create_list</span>
+
+  <span style="color:#888888;"># Usage examples:</span>
+  <span style="color:#888888;"># rake gen:destroy[Model]</span>
+  <span style="color:#888888;"># rake gen:destroy[Model1,Model2,Model3]</span>
+  <span style="color:#888888;"># rake gen:destroy[model1,model2,model3]</span>
+  task <span style="color:#aa6600;">destroy</span>: <span style="color:#aa6600;">:environment</span> <span style="color:#008800;font-weight:bold;">do</span> <span style="color:#333333;">|</span>_, args<span style="color:#333333;">|</span>
+    args<span style="color:#333333;">.</span>extras<span style="color:#333333;">.</span>each <span style="color:#008800;font-weight:bold;">do</span> <span style="color:#333333;">|</span>param<span style="color:#333333;">|</span>
+      param<span style="color:#333333;">.</span>camelize<span style="color:#333333;">.</span>singularize<span style="color:#333333;">.</span>classify<span style="color:#333333;">.</span>constantize<span style="color:#333333;">.</span>destroy_all
+    <span style="color:#008800;font-weight:bold;">end</span>
+  <span style="color:#008800;font-weight:bold;">end</span>
+
+  alias_task <span style="color:#aa6600;">:d</span>, <span style="color:#aa6600;">:destroy</span>
+
+  <span style="color:#888888;"># Truncate all tables</span>
+  task <span style="color:#aa6600;">truncate</span>: <span style="color:#aa6600;">:environment</span> <span style="color:#008800;font-weight:bold;">do</span>
+    <span style="color:#888888;"># For PostgreSQL</span>
+    conn <span style="color:#333333;">=</span> <span style="color:#aa6600;">ActiveRecord</span>:<span style="color:#aa6600;">:Base</span><span style="color:#333333;">.</span>connection
+    tables <span style="color:#333333;">=</span> conn<span style="color:#333333;">.</span>execute(<span style="background-color:#fff0f0;">"</span>
+<span style="background-color:#fff0f0;">      SELECT table_name</span>
+<span style="background-color:#fff0f0;">      FROM information_schema.tables</span>
+<span style="background-color:#fff0f0;">      WHERE table_type = 'BASE TABLE' AND table_schema NOT IN ('pg_catalog', 'information_schema');</span>
+<span style="background-color:#fff0f0;">    "</span>)<span style="color:#333333;">.</span>map { <span style="color:#333333;">|</span>r<span style="color:#333333;">|</span> r<span style="color:#333333;">[</span><span style="background-color:#fff0f0;">'table_name'</span><span style="color:#333333;">]</span> }
+    tables<span style="color:#333333;">.</span>delete <span style="background-color:#fff0f0;">'schema_migrations'</span>
+    tables<span style="color:#333333;">.</span>delete <span style="background-color:#fff0f0;">'ar_internal_metadata'</span>
+    tables<span style="color:#333333;">.</span>each { <span style="color:#333333;">|</span>table<span style="color:#333333;">|</span> conn<span style="color:#333333;">.</span>execute(<span style="background-color:#fff0f0;">"TRUNCATE TABLE </span><span style="background-color:#eeeeee;">#{</span>table<span style="background-color:#eeeeee;">}</span><span style="background-color:#fff0f0;"> CASCADE"</span>) }
+
+    <span style="color:#888888;"># # For SQLite</span>
+    <span style="color:#888888;"># conn = ActiveRecord::Base.connection</span>
+    <span style="color:#888888;"># tables = conn.execute("SELECT * FROM sqlite_master WHERE type='table';").map { |item| item['name'] }</span>
+    <span style="color:#888888;"># tables.delete 'sqlite_sequence'</span>
+    <span style="color:#888888;"># tables.delete 'schema_migrations'</span>
+    <span style="color:#888888;"># tables.delete 'ar_internal_metadata'</span>
+    <span style="color:#888888;"># conn.execute('PRAGMA foreign_keys=OFF')</span>
+    <span style="color:#888888;"># tables.each { |table| conn.execute("delete from #{table}") }</span>
+    <span style="color:#888888;"># conn.execute('PRAGMA foreign_keys=ON')</span>
+  <span style="color:#008800;font-weight:bold;">end</span>
+
+  alias_task <span style="color:#aa6600;">:t</span>, <span style="color:#aa6600;">:truncate</span>
+<span style="color:#008800;font-weight:bold;">end</span>
+<span style="color:#888888;"># rubocop:enable Style/SymbolArray, Style/ParallelAssignment</span>
+</pre>
+</div>
+<br />
+<p>Usage example:<br>
+<!-- HTML generated using hilite.me --></p>
+<div style="background:#ffffff;overflow:auto;width:auto;border:solid gray;border-width:.1em .1em .1em .8em;padding:.2em .6em;">
+<pre style="margin:0;line-height:125%;"><span style="color:#888888;"># Create tour</span>
+rake gen:c<span style="color:#333333;">[</span>tour<span style="color:#333333;">]</span>
+rake gen:create<span style="color:#333333;">[</span>tour<span style="color:#333333;">]</span>
+
+<span style="color:#888888;"># Create tour using with_locations trait</span>
+rake gen:c<span style="color:#333333;">[</span>tour,with_locations<span style="color:#333333;">]</span>
+
+<span style="color:#888888;"># Create 10 tours</span>
+rake gen:create_list<span style="color:#333333;">[</span>tour,10<span style="color:#333333;">]</span>
+rake gen:cl<span style="color:#333333;">[</span>tour,10<span style="color:#333333;">]</span>
+
+<span style="color:#888888;"># Create 10 tours using with_locations trait</span>
+rake gen:cl<span style="color:#333333;">[</span>tour,10,with_locations<span style="color:#333333;">]</span>
+
+<span style="color:#888888;"># Truncate db tables</span>
+rake gen:d<span style="color:#333333;">[</span>Model<span style="color:#333333;">]</span>
+rake gen:destroy<span style="color:#333333;">[</span>Model<span style="color:#333333;">]</span>
+rake gen:destroy<span style="color:#333333;">[</span>Model1,Model2,Model3<span style="color:#333333;">]</span>
+rake gen:destroy<span style="color:#333333;">[</span>model1,model2,model3<span style="color:#333333;">]</span>
+
+<span style="color:#888888;"># Truncate all db tables</span>
+rake db:t
+rake db:truncate
+</pre>
+</div>
+<br />
+<p>Factory example:<br>
+<!-- HTML generated using hilite.me --></p>
+<div style="background:#ffffff;overflow:auto;width:auto;border:solid gray;border-width:.1em .1em .1em .8em;padding:.2em .6em;">
+<pre style="margin:0;line-height:125%;">FactoryBot.define <span style="color:#008800;font-weight:bold;">do</span>
+  factory :location_link <span style="color:#008800;font-weight:bold;">do</span>
+    location
+    name <span style="color:#333333;">{</span> <span style="background-color:#fff0f0;">"Link: #{Faker::BossaNova.song}"</span> <span style="color:#333333;">}</span>
+    description <span style="color:#333333;">{</span> Faker::ChuckNorris.fact <span style="color:#333333;">}</span>
+    content <span style="color:#333333;">{</span> Faker::Internet.url <span style="color:#333333;">}</span>
+  end
+end
+</pre>
+</div>
+  

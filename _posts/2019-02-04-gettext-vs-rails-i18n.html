@@ -1,0 +1,45 @@
+---
+layout: post
+title: "gettext vs Rails I18n"
+---
+    <p>Consider that we need to translate “autos” into Russian. This word will be used in UI filter in which user can select which items he wants to see.</p>
+<p>We can use rails lazy lookup:</p>
+<p><!-- HTML generated using hilite.me --></p>
+<div style="background:#ffffff;overflow:auto;width:auto;border:solid gray;border-width:.1em .1em .1em .8em;padding:.2em .6em;">
+<pre style="margin:0;line-height:125%;">en:
+  products:
+    show
+      filters:
+        autos: <span style="background-color:#fff0f0;">"Машины"</span>
+        computers: <span style="background-color:#fff0f0;">"Компьютеры"</span>
+</pre>
+</div>
+<br />
+<p>And we can have en.shared scope for translations that are used in many different different places of application.<br>
+<!-- HTML generated using hilite.me --></p>
+<div style="background:#ffffff;overflow:auto;width:auto;border:solid gray;border-width:.1em .1em .1em .8em;padding:.2em .6em;">
+<pre style="margin:0;line-height:125%;">en:
+  shared
+    foo: <span style="background-color:#fff0f0;">"Bar"</span>
+</pre>
+</div>
+<p>After some time we get new functional requirements from customer. Now you should use products.show.filters.* scope not only in views, but also in controllers and models. You should convert en.products.show.filters.cars into en.shared.cars. That can’t be done using find-and-replace feature of you favorite text editor. You should open view, change  to , open YML file, cut “autos:” and “computes:” from “products.show” scope, paste them in “shared:” scope, and change indentation.</p>
+<p>If you have deadline tomorrow, you will not have time to move “autos” into different scope, you will use t(‘products.show.filters.welcome_message’) in few actions (products#show,&nbsp; settings#index, sales#new) and models. Your locations will turn into mess.</p>
+<p>The are two solutions for this problem:<br>
+1) Put all translations into global scope<br>
+<!-- HTML generated using hilite.me --></p>
+<div style="background:#ffffff;overflow:auto;width:auto;border:solid gray;border-width:.1em .1em .1em .8em;padding:.2em .6em;">
+<pre style="margin:0;line-height:125%;">en:
+  autos: <span style="background-color:#fff0f0;">"Машины"</span>
+  ask_for_discount: <span style="background-color:#fff0f0;">"Попросить</span> <span style="background-color:#fff0f0;">скидку"</span>
+  are_you_sure: <span style="background-color:#fff0f0;">"Вы</span> <span style="background-color:#fff0f0;">действительно</span> <span style="background-color:#fff0f0;">уверены?"</span>
+</pre>
+</div>
+<br />
+<p>2) Use fastgettext.</p>
+<p>Working with I18n is similar to using BEM blocks. BEM forbids to use grandchild and great-grandchild selectors:
+<a href="https://www.smashingmagazine.com/2016/06/battling-bem-extended-edition-common-problems-and-how-to-avoid-them/" rel="nofollow">https://www.smashingmagazine.com/2016/06/battling-bem-extended-edition-common-problems-and-how-to-avoid-them/</a></p>
+<p>BEM makes it easy to extract some child element into separate block and use in few other places of application. If you use SCSS and have 10 level nesting, if you inner cascades inherit styles from parent cascades, it would be extremely painful to extract some piece of html code from complicated block and convert this piece into separate block that can be used multiple times in other parts of application.</p>
+<p>BEM forbids to use ids for a same reason. You will have to rewrite your code if you will need to have few blocks instead of single one.</p>
+<p>Avoiding cascades simplifies refactoring and extraction.</p>
+<p>For further reading: <a href="https://translation.io/blog/gettext-is-better-than-rails-i18n" rel="nofollow">https://translation.io/blog/gettext-is-better-than-rails-i18n</a></p>
